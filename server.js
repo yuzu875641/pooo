@@ -23,7 +23,7 @@ app.get('/watch', async (req, res) => {
         `);
     }
 
-    const externalApiUrl = \`https://siawaseok.f5.si/api/2/streams/\${videoid}\`; 
+    const externalApiUrl = `https://siawaseok.f5.si/api/2/streams/${videoid}`; 
     let videoUrl = null;
     let error = null;
 
@@ -31,7 +31,7 @@ app.get('/watch', async (req, res) => {
         const response = await fetch(externalApiUrl);
 
         if (!response.ok) {
-            throw new Error(\`External API returned status: \${response.status}\`);
+            throw new Error(`External API returned status: ${response.status}`);
         }
 
         const data = await response.json();
@@ -50,7 +50,7 @@ app.get('/watch', async (req, res) => {
 
     const status = videoUrl ? 200 : 404;
     
-    res.status(status).send(\`
+    res.status(status).send(`
         <html>
             <head>
                 <title>${SITE_NAME}</title>
@@ -65,17 +65,17 @@ app.get('/watch', async (req, res) => {
             <body>
                 <div class="container">
                     <h1>動画再生</h1>
-                    <p><strong>Video ID:</strong> \${videoid}</p>
-                    \${error ? \`
-                        <p class="error">エラー: \${error}</p>
-                    \` : \`
+                    <p><strong>Video ID:</strong> ${videoid}</p>
+                    ${error ? `
+                        <p class="error">エラー: ${error}</p>
+                    ` : `
                         <h2>再生</h2>
-                        <video controls autoplay src="\${videoUrl}">
+                        <video controls autoplay src="${videoUrl}">
                             お使いのブラウザは動画タグをサポートしていません。
                         </video>
-                    \`}
+                    `}
                 </div>
             </body>
         </html>
-    \`);
+    `);
 });
