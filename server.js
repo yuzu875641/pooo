@@ -10,7 +10,6 @@ app.get('/watch', async (req, res) => {
     const videoid = req.query.v;
     const targetItag = req.query.itag;
 
-    // パラメータチェック
     if (!videoid || !targetItag) {
         return res.status(400).send(
             '<html><head><title>' + SITE_NAME + '</title></head><body>' +
@@ -22,7 +21,6 @@ app.get('/watch', async (req, res) => {
         );
     }
 
-    // 外部APIからのデータ取得
     const externalApiUrl = 'https://siawaseok.f5.si/api/2/streams/' + videoid; 
     let videoUrl = null;
     let error = null;
@@ -31,7 +29,7 @@ app.get('/watch', async (req, res) => {
         const response = await fetch(externalApiUrl);
 
         if (!response.ok) {
-            throw new Error('External API returned status: ' + response.status + ' for ' + externalApiUrl);
+            throw new Error('External API returned status: ' + response.status);
         }
 
         const data = await response.json();
@@ -49,23 +47,17 @@ app.get('/watch', async (req, res) => {
 
         } else {
             error = '指定された iTag (' + targetItag + ') の動画フォーマットが見つかりませんでした。';
-            // デバッグ情報としてサーバーログに出力
-            console.warn(`Format not found for ${videoid} with itag ${targetItag}.`);
         }
 
     } catch (e) {
-        console.error('Video Data Fetch Error (fatal):', e.message); 
-        error = "動画データの取得中にサーバー側でエラーが発生しました: " + e.message;
-        videoUrl = null; // エラー時は確実にnull
+        error = "動画データの取得中にサーバー側でエラーが発生しました。";
     }
 
     const status = videoUrl ? 200 : 404;
 
-    // HLS.jsを使用した動画再生HTML (成功時)
+    // 動画を画面いっぱいに表示するためのCSSを適用
     if (videoUrl) {
-        // videoUrlをJavaScript文字列リテラルとして安全に埋め込む
-        const safeVideoUrl = videoUrl.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-
+        // コンテンツを全画面表示するためのHTML
         const fullScreenHtml = 
             '<html>' +
             '<head>' +
@@ -75,60 +67,20 @@ app.get('/watch', async (req, res) => {
                     '#video-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }' +
                     '#video-player { width: 100%; height: 100%; object-fit: contain; }' +
                 '</style>' +
-                '<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>' +
             '</head>' +
             '<body>' +
                 '<div id="video-container">' +
-                    '<video id="video-player" controls autoplay></video>' + 
+                    '<video id="video-player" controls autoplay src="' + videoUrl + '">' +
+                        'お使いのブラウザは動画タグをサポートしていません。' +
+                    '</video>' +
                 '</div>' +
-
-                '<script>' +
-                    'const video = document.getElementById(\'video-player\');' +
-                    'const videoSrc = "' + safeVideoUrl + '";' + 
-
-                    'if (Hls.isSupported()) {' +
-                        'const hls = new Hls();' +
-                        'hls.loadSource(videoSrc);' +
-                        'hls.attachMedia(video);' +
-                        'hls.on(Hls.Events.ERROR, function (event, data) {' +
-                            'if (data.fatal) {' +
-                                'switch(data.type) {' +
-                                    'case Hls.ErrorTypes.NETWORK_ERROR:' +
-                                        'console.error("HLS ネットワークエラー:", data.details);' +
-                                        'hls.startLoad();' +
-                                        'break;' +
-                                    'case Hls.ErrorTypes.MEDIA_ERROR:' +
-                                        'console.error("HLS メディアエラー:", data.details);' +
-                                        'hls.recoverMediaError();' +
-                                        'break;' +
-                                    'default:' +
-                                        'console.error("HLS致命的なエラー:", data.details);' +
-                                        'hls.destroy();' +
-                                        'break;' +
-                                '}' +
-                            '}' +
-                        '});' +
-                    '} else if (video.canPlayType(\'application/vnd.apple.mpegurl\')) {' +
-                        'video.src = videoSrc;' +
-                    '} else {' +
-                        'const container = document.getElementById(\'video-container\');' +
-                        'container.innerHTML = \'<div style="color: white; text-align: center; padding: 20px;">' +
-                            'お使いのブラウザは動画タグとHLS再生をサポートしていません。' +
-                            '<br>ストリームURL: ' + videoSrc +
-                        '</div>\';' +
-                    '}' +
-                    
-                    'video.play().catch(error => {' +
-                        'console.warn("自動再生がブロックされました。ユーザーの操作が必要です。");' +
-                    '});' +
-                '</script>' +
             '</body>' +
             '</html>';
         
         return res.status(200).send(fullScreenHtml);
     }
     
-    // エラー時のHTML (失敗時)
+    // エラー時のHTML (全画面表示ではない)
     const errorHtml = 
         '<html>' +
         '<head>' +
