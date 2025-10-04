@@ -1,54 +1,41 @@
-// server.js
-
-// 必要なモジュールのインポート
 const express = require('express');
-const fetch = require('node-fetch'); // node-fetchをインストールしていない場合は、Node.js 18以降の組み込みfetchに置き換えることも可能です。
+const fetch = require('node-fetch');
 
 const app = express();
-const SITE_NAME = "ゆず"; // ★ここにサイトのタイトルを設定してください★
+const SITE_NAME = "ゆず";
 
-// VercelがServerless Functionのエントリポイントとして使用できるようにExpressアプリをエクスポート
 module.exports = app;
 
-/**
- * ルート: /watch?v={videoid} を処理する
- */
 app.get('/watch', async (req, res) => {
-    // 1. クエリパラメータからvideoidを取得
     const videoid = req.query.v;
 
     if (!videoid) {
-        // videoidがない場合はエラーレスポンスを返す
         return res.status(400).send(`
             <html>
                 <head><title>${SITE_NAME}</title></head>
                 <body>
                     <div style="font-family: sans-serif; text-align: center; max-width: 800px; margin: 40px auto;">
                         <h1>エラー</h1>
-                        <p style="color: red;">ビデオID (v) がクエリパラメータに指定されていません。</p>
-                        <p>例: /watch?v=xxxxxxxxxxx</p>
+                        <p style="color: red;">ビデオID (v) が指定されていません。</p>
                     </div>
                 </body>
             </html>
         `);
     }
 
-    const externalApiUrl = \`https://siawaseok.f5.si/api/2/streams/\${videoid}\`;
+    const externalApiUrl = \`https://siawaseok.f5.si/api/2/streams/\${videoid}\`; 
     let videoUrl = null;
     let error = null;
 
     try {
-        // 2. 外部APIの呼び出し（サーバーサイドで実行）
         const response = await fetch(externalApiUrl);
 
         if (!response.ok) {
-            // 外部APIが2xx以外のステータスコードを返した場合
             throw new Error(\`External API returned status: \${response.status}\`);
         }
 
         const data = await response.json();
         
-        // 3. formats配列からitagが96のURLを抽出
         const format96 = data.formats?.find(format => format.itag === 96);
 
         if (format96) {
@@ -58,12 +45,10 @@ app.get('/watch', async (req, res) => {
         }
 
     } catch (e) {
-        console.error("API Error for videoid:", videoid, e);
         error = "動画データの取得中にサーバー側でエラーが発生しました。";
     }
 
-    // 4. HTMLレスポンスの生成と返却
-    const status = videoUrl ? 200 : 404; // URLがあれば200、なければ404
+    const status = videoUrl ? 200 : 404;
     
     res.status(status).send(\`
         <html>
