@@ -1,0 +1,22 @@
+{
+  "name": "nodejs-video-app",
+  "version": "1.0.0",
+  "description": "Node.js/Express serverless function for video streaming.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "vercel",
+    "nodejs",
+    "express",
+    "serverless"
+  ],
+  "author": "",
+  "license": "ISC"
+}
