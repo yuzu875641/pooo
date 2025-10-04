@@ -23,59 +23,81 @@ app.get('/watch', async (req, res) => {
         `);
     }
 
-    const externalApiUrl = `https://siawaseok.f5.si/api/2/streams/${videoid}`; 
-    let videoUrl = null;
+    const externalApiUrl = \`https://siawaseok.f5.si/api/2/streams/\${videoid}\`; 
+    let formats = null; // 全フォーマットを格納
     let error = null;
 
     try {
         const response = await fetch(externalApiUrl);
 
         if (!response.ok) {
-            throw new Error(`External API returned status: ${response.status}`);
+            throw new Error(\`External API returned status: \${response.status}\`);
         }
 
         const data = await response.json();
         
-        const format96 = data.formats?.find(format => format.itag === 96);
-
-        if (format96) {
-            videoUrl = format96.url;
-        } else {
-            error = "itag 96 (高画質) の動画フォーマットが見つかりませんでした。";
-        }
+        // 取得したformats配列全体を格納
+        formats = data.formats || [];
 
     } catch (e) {
         error = "動画データの取得中にサーバー側でエラーが発生しました。";
     }
 
-    const status = videoUrl ? 200 : 404;
+    const hasFormats = formats && formats.length > 0;
+    const status = hasFormats ? 200 : (error ? 500 : 404);
     
-    res.status(status).send(`
+    // 全フォーマットのHTML表示部分を生成
+    const formatsHtml = hasFormats ? formats.map(format => {
+        // 解像度が null の場合は "Audio Only" と表示
+        const resolution = format.resolution && format.resolution !== "audio only" ? format.resolution : "Audio Only";
+        
+        return \`
+            <div class="format-item">
+                <h3>itag: \${format.itag} / \${resolution}</h3>
+                <p><strong>ファイル形式:</strong> \${format.ext || '不明'}</p>
+                <p><strong>コーデック:</strong> (V: \${format.vcodec || 'なし'}) (A: \${format.acodec || 'なし'})</p>
+                <p><strong>URL:</strong> <a href="\${format.url}" target="_blank" rel="noopener noreferrer">リンクを確認</a></p>
+                \${format.vcodec !== "none" ? \`
+                    <video controls src="\${format.url}" style="max-width: 100%; height: auto; margin-top: 10px; border: 1px solid #ccc;">
+                        お使いのブラウザはこのフォーマットをサポートしていません。
+                    </video>
+                \` : \`
+                    <audio controls src="\${format.url}" style="width: 100%; margin-top: 10px;">
+                        音声のみ
+                    </audio>
+                \`}
+            </div>
+            <hr>
+        \`;
+    }).join('') : (error ? \`
+        <p class="error">エラー: \${error}</p>
+    \` : \`
+        <p>利用可能な動画フォーマットが見つかりませんでした。</p>
+    \`);
+
+    res.status(status).send(\`
         <html>
             <head>
                 <title>${SITE_NAME}</title>
                 <style>
                     body { font-family: sans-serif; text-align: center; background-color: #f0f0f0; }
-                    .container { max-width: 800px; margin: 40px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-                    h1 { color: #333; }
-                    .error { color: #d9534f; font-weight: bold; }
-                    video { width: 100%; height: auto; border-radius: 4px; }
+                    .container { max-width: 900px; margin: 40px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: left; }
+                    h1 { color: #333; text-align: center; }
+                    h2 { border-bottom: 2px solid #eee; padding-bottom: 5px; }
+                    h3 { margin-top: 20px; color: #555; }
+                    .error { color: #d9534f; font-weight: bold; text-align: center; }
+                    hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+                    .format-item { padding: 10px; border: 1px solid #f9f9f9; margin-bottom: 10px; }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h1>動画再生</h1>
-                    <p><strong>Video ID:</strong> ${videoid}</p>
-                    ${error ? `
-                        <p class="error">エラー: ${error}</p>
-                    ` : `
-                        <h2>再生</h2>
-                        <video controls autoplay src="${videoUrl}">
-                            お使いのブラウザは動画タグをサポートしていません。
-                        </video>
-                    `}
+                    <h1>\${SITE_NAME} - 動画フォーマット一覧</h1>
+                    <p style="text-align: center;"><strong>Video ID:</strong> \${videoid}</p>
+                    <h2>利用可能なストリーム</h2>
+                    \${formatsHtml}
                 </div>
             </body>
         </html>
-    `);
+    \`);
 });
