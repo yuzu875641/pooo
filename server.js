@@ -8,7 +8,7 @@ module.exports = app;
 
 app.get('/watch', async (req, res) => {
     const videoid = req.query.v;
-    const targetItag = req.query.itag; // ★ 修正箇所: itagを取得 ★
+    const targetItag = req.query.itag;
 
     if (!videoid || !targetItag) {
         return res.status(400).send(
@@ -34,17 +34,15 @@ app.get('/watch', async (req, res) => {
 
         const data = await response.json();
         
-        // ★ 修正箇所: 指定された targetItag のオブジェクトを検索 ★
-        // API応答のitagが文字列であるため、比較も文字列で行う
+        // API応答のitagが文字列であるため、文字列で比較
         const targetFormat = data.formats?.find(format => format.itag === targetItag); 
 
         if (targetFormat) {
-            // 動画または音声のURLを取得
             videoUrl = targetFormat.url;
             
-            // ターゲットのフォーマットが音声専用であるかをチェック
             if (targetFormat.vcodec === "none") {
-                 error = `itag ${targetItag} は音声専用（${targetFormat.acodec || '不明'}）です。`
+                 error = 'itag ' + targetItag + ' は音声専用（' + (targetFormat.acodec || '不明') + '）です。';
+                 videoUrl = null; // 音声専用の場合は動画再生を試みない
             }
 
         } else {
@@ -57,33 +55,52 @@ app.get('/watch', async (req, res) => {
 
     const status = videoUrl ? 200 : 404;
 
-    // 動画URLが見つかっても、エラーメッセージがある場合は動画埋め込みを避ける
-    const contentHtml = videoUrl && !error ?
-        '<video controls autoplay src="' + videoUrl + '" style="max-width: 100%; height: auto; border-radius: 4px;">お使いのブラウザは動画タグをサポートしていません。</video>' :
-        '<p class="error">エラー: ' + (error || '指定されたストリームが見つかりません。') + '</p>';
+    // 動画を画面いっぱいに表示するためのCSSを適用
+    if (videoUrl) {
+        // コンテンツを全画面表示するためのHTML
+        const fullScreenHtml = 
+            '<html>' +
+            '<head>' +
+                '<title>' + SITE_NAME + ' - ' + targetItag + '</title>' +
+                '<style>' +
+                    'body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }' +
+                    '#video-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }' +
+                    '#video-player { width: 100%; height: 100%; object-fit: contain; }' +
+                '</style>' +
+            '</head>' +
+            '<body>' +
+                '<div id="video-container">' +
+                    '<video id="video-player" controls autoplay src="' + videoUrl + '">' +
+                        'お使いのブラウザは動画タグをサポートしていません。' +
+                    '</video>' +
+                '</div>' +
+            '</body>' +
+            '</html>';
+        
+        return res.status(200).send(fullScreenHtml);
+    }
     
-    // HTML全体を文字列結合で返す
-    res.status(status).send(
+    // エラー時のHTML (全画面表示ではない)
+    const errorHtml = 
         '<html>' +
         '<head>' +
-            '<title>' + SITE_NAME + '</title>' +
+            '<title>' + SITE_NAME + ' - エラー</title>' +
             '<style>' +
                 'body { font-family: sans-serif; text-align: center; background-color: #f0f0f0; }' +
                 '.container { max-width: 800px; margin: 40px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }' +
                 'h1 { color: #333; }' +
                 '.error { color: #d9534f; font-weight: bold; }' +
-                'video { width: 100%; height: auto; border-radius: 4px; }' +
             '</style>' +
         '</head>' +
         '<body>' +
             '<div class="container">' +
-                '<h1>' + SITE_NAME + ' - 動画再生</h1>' +
+                '<h1>' + SITE_NAME + ' - エラー</h1>' +
                 '<p><strong>Video ID:</strong> ' + videoid + '</p>' +
                 '<p><strong>iTag:</strong> ' + targetItag + '</p>' +
-                '<h2>再生ウィンドウ</h2>' +
-                contentHtml +
+                '<p class="error">エラー: ' + (error || '指定されたストリームが見つかりません。') + '</p>' +
             '</div>' +
         '</body>' +
-        '</html>'
-    );
+        '</html>';
+
+    res.status(status).send(errorHtml);
 });
