@@ -115,7 +115,7 @@ app.get('/watch', async (req, res) => {
                         // SafariなどのネイティブHLSをサポートするブラウザのためのフォールバック
                         'video.src = videoSrc;' +
                     '} else {' +
-                        '// どちらもサポートされていない場合のフォールバック' +
+                        // どちらもサポートされていない場合のフォールバック
                         'const container = document.getElementById(\'video-container\');' +
                         'container.innerHTML = \'<div style="color: white; text-align: center; padding: 20px;">' +
                             'お使いのブラウザは動画タグとHLS再生をサポートしていません。' +
@@ -125,9 +125,7 @@ app.get('/watch', async (req, res) => {
                     
                     // 自動再生を試みる (HLS.jsまたはネイティブのsrc設定後に実行)
                     'video.play().catch(error => {' +
-                        '// 自動再生がブロックされた場合の処理' +
                         'console.warn("自動再生がブロックされました。ユーザーの操作が必要です。");' +
-                        '// ユーザーに再生ボタンを押してもらうためのUIを表示するなどの対応が必要
                     '});' +
                 '</script>' +
             '</body>' +
